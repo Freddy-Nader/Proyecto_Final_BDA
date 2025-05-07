@@ -1,6 +1,17 @@
-USE proyecto_final;
+from pymongo import MongoClient
+import pandas as pd
 
--- EDITAR LO DE CATEGORIAS
+client = MongoClient('localhost', 27017)
+db = client.proyecto_final
+coleccion = db.books
+
+import sqlite3
+
+conn = sqlite3.connect('proyecto_final.db')
+cursor = conn.cursor()
+
+cursor.executescript("""
+
 ALTER TABLE Categorias RENAME TO Categories_old;
 
 CREATE TABLE IF NOT EXISTS Categorias (
@@ -28,7 +39,7 @@ JOIN Categorias c ON co.categoria = c.nombre;
 SELECT * FROM Categorias;
 SELECT * FROM LibroCategoria;
 
--- EDITAR AUTORES Y LIBROS
+
 CREATE TABLE IF NOT EXISTS LibroAutor (
     libro_id VARCHAR(24) NOT NULL,
     autor_id INT NOT NULL,
@@ -63,6 +74,20 @@ ORDER BY l.titulo;
 RENAME TABLE Autores TO Autores_Backup;
 ALTER TABLE AutoresNormalizados RENAME TO Autores;
 
+RENAME TABLE Autores TO Autores_Backup;
+ALTER TABLE AutoresNormalizados RENAME TO Autores;
+
 ALTER TABLE LibroAutor DROP FOREIGN KEY LibroAutor_ibfk_2; 
 
 DROP TABLE Autores_Backup;
+""")
+
+conn.commit()
+
+for tabla in ['Libros','Autores','Categorias','Estados','LibroAutor','LibroCategoria','Libros']:
+    count = cursor.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0]
+    print(f"{tabla}: {count} registros")
+
+print("\nPrimeros libros:")
+print(pd.read_sql_query("SELECT id, titulo, isbn FROM Libros LIMIT 5;", conn))
+conn.close()
