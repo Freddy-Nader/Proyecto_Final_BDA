@@ -1,18 +1,14 @@
-from pymongo import MongoClient
 import pandas as pd
+from sqlalchemy import create_engine, text
+import numpy as np
 
-client = MongoClient('localhost', 27017)
-db = client.proyecto_final
-coleccion = db.books
+# Connect to MySQL server "Bases"
+engine = create_engine('mysql+pymysql://root:warmachinerox2005@127.0.0.1:3306/proyecto_final')
 
-import sqlite3
-
-conn = sqlite3.connect('proyecto_final.db')
-cursor = conn.cursor()
-
-cursor.executescript("""
-
-ALTER TABLE Categorias RENAME TO Categories_old;
+# Recreate tables
+with engine.connect() as conn:
+    conn.execute(text("""
+    ALTER TABLE Categorias RENAME TO Categories_old;
 
 CREATE TABLE IF NOT EXISTS Categorias (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
@@ -80,14 +76,18 @@ ALTER TABLE AutoresNormalizados RENAME TO Autores;
 ALTER TABLE LibroAutor DROP FOREIGN KEY LibroAutor_ibfk_2; 
 
 DROP TABLE Autores_Backup;
-""")
+    
+    """))
 
-conn.commit()
 
-for tabla in ['Libros','Autores','Categorias','Estados','LibroAutor','LibroCategoria','Libros']:
-    count = cursor.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0]
-    print(f"{tabla}: {count} registros")
+# Verify the data was inserted
+with engine.connect() as conn:
+    print("\nCounts in each table:")
+    for tabla in ['Libros','Autores','Categorias','Estados','LibroAutor','LibroCategoria']:
+        count = conn.execute(text(f"SELECT COUNT(*) FROM {tabla}")).fetchone()[0]
+        print(f"{tabla}: {count} registros")
 
-print("\nPrimeros libros:")
-print(pd.read_sql_query("SELECT id, titulo, isbn FROM Libros LIMIT 5;", conn))
-conn.close()
+    print("\nFirst 5 books:")
+    result = conn.execute(text("SELECT id, titulo, isbn FROM Libros LIMIT 5;"))
+    for row in result:
+        print(row)
